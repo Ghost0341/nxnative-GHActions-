@@ -1,0 +1,49 @@
+name: Build Super Mario Odyssey IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      game_url:
+        description: 'Direct download URL for Super Mario Odyssey NSP/XCI file'
+        required: true
+      game_folder:
+        description: 'Folder name'
+        required: true
+        default: 'SuperMarioOdyssey'
+
+jobs:
+  build:
+    runs-on: macos-latest  # (Runs on GitHub's cloud-hosted Apple Mac hardware)
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Homebrew & Dependencies
+        run: |
+          brew install xcodegen zstd spirv-cross glslang
+          brew install --cask dotnet-sdk
+          python3 -m pip install lz4 capstone fonttools "backports.zstd; python_version < '3.14'"
+
+      - name: Setup Keys and Game Directory
+        run: |
+          mkdir -p ~/.keys
+          # (This pulls your pasted prod.keys content from GitHub Repository Secrets)
+          echo "${{ secrets.PROD_KEYS }}" > ~/.keys/prod.keys
+          mkdir -p ~/Games/${{ github.event.inputs.game_folder }}
+
+      - name: Download Game File
+        run: |
+          # (Downloads your Super Mario Odyssey NSP file directly into the cloud Mac's game directory)
+          curl -L "${{ github.event.inputs.game_url }}" -o ~/Games/${{ github.event.inputs.game_folder }}/SuperMarioOdyssey.nsp
+
+      - name: Run Build Script
+        run: |
+          # (Runs the nxnative python script to compile Super Mario Odyssey into an IPA file)
+          python3 scripts/build_ipa_from_nsp.py ~/Games/${{ github.event.inputs.game_folder }} -k ~/.keys/prod.keys
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SuperMarioOdyssey-IPA
+          path: ~/Games/**/*.ipa
