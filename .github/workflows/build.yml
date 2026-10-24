@@ -13,33 +13,42 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest  # (Runs on GitHub's cloud-hosted Apple Mac hardware)
+    runs-on: macos-latest
     
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-- name: Set up Homebrew & Dependencies
+
+      - name: Set up Homebrew & Dependencies
         run: |
           brew install xcodegen zstd spirv-cross glslang
           brew install --cask dotnet-sdk
           python3 -m pip install --break-system-packages lz4 capstone fonttools "backports.zstd; python_version < '3.14'"
-          python3 -m pip install lz4 capstone fonttools "backports.zstd; python_version < '3.14'"
 
       - name: Setup Keys and Game Directory
         run: |
           mkdir -p ~/.keys
-          # (This pulls your pasted prod.keys content from GitHub Repository Secrets)
-          echo "${{ secrets.PROD_KEYS }}" > ~/.keys/prod.keys
           mkdir -p ~/Games/${{ github.event.inputs.game_folder }}
+          echo "${{ secrets.PROD_KEYS }}" > ~/.keys/prod.keys
+          
+          if [ ! -s ~/.keys/prod.keys ]; then
+            echo "ERROR: PROD_KEYS secret is empty or not found in Repository Secrets!"
+            exit 1
+          fi
 
       - name: Download Game File
         run: |
-          # (Downloads your Super Mario Odyssey NSP file directly into the cloud Mac's game directory)
+          echo "Downloading game file..."
           curl -L "${{ github.event.inputs.game_url }}" -o ~/Games/${{ github.event.inputs.game_folder }}/SuperMarioOdyssey.nsp
+          
+          FILESIZE=$(wc -c < "$HOME/Games/${{ github.event.inputs.game_folder }}/SuperMarioOdyssey.nsp" | tr -d ' ')
+          if [ "$FILESIZE" -lt 100000000 ]; then
+            echo "ERROR: Downloaded file is too small ($FILESIZE bytes). Check if your URL is a direct download link!"
+            exit 1
+          fi
 
       - name: Run Build Script
         run: |
-          # (Runs the nxnative python script to compile Super Mario Odyssey into an IPA file)
           python3 scripts/build_ipa_from_nsp.py ~/Games/${{ github.event.inputs.game_folder }} -k ~/.keys/prod.keys
 
       - name: Upload IPA Artifact
