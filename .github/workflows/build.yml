@@ -39,8 +39,8 @@ jobs:
       - name: Download Game File
         run: |
           echo "Downloading game file..."
-          # Uses gdown to bypass Google Drive virus scan warning pages automatically
-          gdown "${{ github.event.inputs.game_url }}" --fuzzy -O ~/Games/${{ github.event.inputs.game_folder }}/SuperMarioOdyssey.nsp
+          # Directly download the Google Drive file using gdown
+          gdown "${{ github.event.inputs.game_url }}" -O ~/Games/${{ github.event.inputs.game_folder }}/SuperMarioOdyssey.nsp
           
           FILESIZE=$(wc -c < "$HOME/Games/${{ github.event.inputs.game_folder }}/SuperMarioOdyssey.nsp" | tr -d ' ')
           if [ "$FILESIZE" -lt 100000000 ]; then
